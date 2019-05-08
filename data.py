@@ -17,9 +17,9 @@ from sklearn.metrics import auc
 import matplotlib.pyplot as plt
 
 activity_classes = {
-    "fitness": ["Running", "Football"],
+    "fitness": ["Running", "Football","Train"],
     "entertainment": ["Video games", "In computer", "Watching TV", "Movie"],
-    "transportation": ["In vehicle", "In bus", "On bus stop", "Train"],
+    "transportation": ["In vehicle", "In bus", "On bus stop"],
     "recreation": ["At home", "Picnic", "Walk", "Cooking", "Pause", "Shop", "Shopping& wearing", "Walking&party"],
     "sleep": ["Sleep"],
     "eat": ["Eat"],
@@ -36,6 +36,16 @@ activities = {
     "eat": [0, 0, 0, 0, 0, 1, 0, 0],
     "work": [0, 0, 0, 0, 0, 0, 1, 0],
     "miscellaneous": [0, 0, 0, 0, 0, 0, 0, 1]
+}
+
+new_activities = {
+    "fitness":        [1, 0, 0, 0, 0, 0, 0],
+    "entertainment":  [0, 1, 0, 0, 0, 0, 0],
+    "transportation": [0, 0, 1, 0, 0, 0, 0],
+    "recreation":     [0, 0, 0, 1, 0, 0, 0],
+    "eat":            [0, 0, 0, 0, 1, 0, 0],
+    "work":           [0, 0, 0, 0, 0, 1, 0],
+    "miscellaneous":  [0, 0, 0, 0, 0, 0, 1]
 }
 
 MAX_DIFFERENCE = datetime.timedelta(0,0,500000)
@@ -78,9 +88,9 @@ class Activity():
 
 
 def make_data():
-    with open("human-activity-smart-devices/glasses.csv") as g:
+    with open("human_data/glasses.csv") as g:
         glasses_reader = csv.reader(g)
-        with open("human-activity-smart-devices/smartwatch.csv") as w:
+        with open("human_data/smartwatch.csv") as w:
             watch_reader = csv.reader(w)
             lines = []
             glasses_rows = []
@@ -184,7 +194,7 @@ def make_data():
 
 
 def read_report():
-    with open("human-activity-smart-devices/report.csv") as f:
+    with open("human_data/report.csv") as f:
         csv_reader = csv.reader(f)
         lines = []
         for i, row in enumerate(csv_reader):
@@ -226,7 +236,7 @@ def plot_confusion_matrix(y_true, y_pred, classes,
     # Compute confusion matrix
     cm = confusion_matrix(y_true, y_pred)
     # Only use the labels that appear in the data
-    classes = classes[unique_labels(y_true, y_pred)]
+    classes = [classes[i] for i in list(unique_labels(y_true, y_pred))]
     if normalize:
         cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
         print("Normalized confusion matrix")
@@ -284,9 +294,9 @@ def experiment(data, columns, y_data):
     model.add(Conv1D(filters=10, kernel_size=2, padding='same', activation='relu', input_shape=(10,1)))
     model.add(MaxPooling1D(pool_size=2))
     model.add(LSTM(100, dropout=0.2, recurrent_dropout=0.2))
-    model.add(Dense(8, activation='softmax'))
+    model.add(Dense(7, activation='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-    print(model.summary())
+    # print(model.summary())
     model.fit(x_train, y_train, epochs=3)
 
     scores = model.evaluate(x_test, y_test, verbose=0)
@@ -298,11 +308,11 @@ def experiment(data, columns, y_data):
     plt.figure(figsize=(10, 10))
     plt.plot([0, 1], [0, 1], 'k--')
 
-    list_of_keys = list(activities.keys())
-    print(list_of_keys)
-    for i in range(8):
-        print(y_test[:, i])
-        print(y_pred_keras.shape)
+    list_of_keys = list(new_activities.keys())
+    # print(list_of_keys)
+    for i in range(7):
+        # print(y_test[:, i])
+        # print(y_pred_keras.shape)
         fpr, tpr, threshold = roc_curve(y_test[:, i], y_pred_keras[:, i])  # YOUR CODE HERE construct ROC Curve
         plt.plot(fpr, tpr, label='{}, AUC = {:.3f}'.format(list_of_keys[i], auc(fpr, tpr)))
 
@@ -323,12 +333,9 @@ def experiment(data, columns, y_data):
                 break
     new_y_pred = []
     for example in y_pred_keras:
-        for i, e in enumerate(example):
-            if e == 1:
-                new_y_pred.append(i)
-                break
-    print(confusion_matrix(new_y, new_y_pred, activities.keys()))
-    # plot_confusion_matrix(y_test, y_pred_keras, activities.keys())
+        new_y_pred.append(np.argmax(example))
+    # print(confusion_matrix(new_y, new_y_pred))
+    plot_confusion_matrix(new_y, new_y_pred, list(new_activities.keys()))
 
 
 
@@ -366,9 +373,17 @@ if __name__ == "__main__":
     for f in mid_data:
         float_data.append([float(x) for x in f[:-1]])
         y_data.append(f[-1])
-    experiment(float_data, columns[1:], y_data)
 
-
+    new_y = [] 
+    class_counter = [0 for i in range(8)]
+    for y in y_data:
+        for a_old, v in activities.items():
+            if v == y:
+                new_y.append(new_activities[a_old])
+    print(len(new_y))
+    experiment(float_data, columns[1:], new_y)
+    # print(len(float_data))
+    # print(y_data)
 
     # print(report.shape)
     # print(glasses.shape)
